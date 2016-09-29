@@ -178,7 +178,13 @@ When /^I press "([^"]*)"$/ do |button|
   wait_with_short_timeout.until {
     @button = @browser.find_element(:id => button)
   }
-  @button.click
+  begin
+    @button.click
+  rescue
+    # Single retry to compensate for element changing between find and click
+    @element = @browser.find_element(:id => button)
+    @element.click
+  end
 end
 
 When /^I press the first "([^"]*)" element$/ do |selector|
