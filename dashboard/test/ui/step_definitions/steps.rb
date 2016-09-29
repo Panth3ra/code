@@ -174,11 +174,9 @@ When /^I inject simulation$/ do
   @browser.execute_script("var fileref=document.createElement('script');  fileref.setAttribute('type','text/javascript'); fileref.setAttribute('src', '/assets/jquery.simulate.js'); document.getElementsByTagName('head')[0].appendChild(fileref)")
 end
 
-When /^I press "([^"]*)"$/ do |button|
-  wait_with_short_timeout.until {
-    @button = @browser.find_element(:id => button)
-  }
-  @button.click
+When /^I press "([^"]*)"$/ do |button_id|
+  button = wait_with_short_timeout.until { @browser.find_element(:id => button_id) }
+  button.click
 end
 
 When /^I press the first "([^"]*)" element$/ do |selector|
