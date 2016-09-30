@@ -48,18 +48,18 @@ namespace :circle do
           " --abort_when_failures_exceed 10" \
           " --retry_count 2" \
           " --html"
-      if is_pipeline_branch
-        RakeUtils.system_stream_output "bundle exec ./runner.rb" \
-            " --eyes" \
-            " --feature #{container_eyes_features.join(',')}" \
-            " --config ChromeLatestWin7,iPhone" \
-            " --pegasus localhost.code.org:3000" \
-            " --dashboard localhost.studio.code.org:3000" \
-            " --circle" \
-            " --parallel 10" \
-            " --retry_count 1" \
-            " --html"
-      end
+      #if is_pipeline_branch # DO NOT MERGE
+      RakeUtils.system_stream_output "bundle exec ./runner.rb" \
+          " --eyes" \
+          " --feature #{container_eyes_features.join(',')}" \
+          " --config ChromeLatestWin7,iPhone" \
+          " --pegasus localhost.code.org:3000" \
+          " --dashboard localhost.studio.code.org:3000" \
+          " --circle" \
+          " --parallel 10" \
+          " --retry_count 1" \
+          " --html"
+      #end
     end
     # Kill Sauce Connect tunnel
     RakeUtils.system_stream_output 'killall sc'
