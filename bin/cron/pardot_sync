@@ -43,6 +43,24 @@ def append_plp_to_role_list
     WHERE LENGTH(users.email) > 0 AND contacts_rollup.id > 0"
 end
 
+def update_facilitator_types
+  # List of valid courses. If more courses get added, need to update this list and also schema in Pardot. We
+  # need to filter here to known courses in the Pardot schema - we can't blindly pass values through
+  course_list = "'CS Fundamentals','CS in Algebra','CS in Science','CS Principles','Exploring Computer Science'"
+
+  PEGASUS_DB.run "SET SQL_SAFE_UPDATES = 0"
+  PEGASUS_DB.run "UPDATE contacts_rollup,
+      (SELECT facilitator_id, group_concat(course) AS courses FROM (
+          SELECT DISTINCT facilitator_id,course FROM #{DASHBOARD_DB_NAME}.pd_course_facilitators
+	        WHERE COURSE IN (#{course_list})
+	        ORDER by 1,2
+      ) q
+      GROUP BY facilitator_id
+    ) src
+	SET contacts_rollup.facilitator_type = src.courses
+  WHERE contacts_rollup.dashboard_user_id = src.facilitator_id"
+end
+
 def mysql_multi_connection
   Sequel.connect(CDO.pegasus_db_writer.sub('mysql:', 'mysql2:'), flags: ::Mysql2::Client::MULTI_STATEMENTS)
 end
@@ -299,8 +317,8 @@ def main
   puts " - " + ((Time.now) - start).to_s + " seconds"
 #=end
 
-#  merge_teacher_geo_data_from_forms
 #=begin
+  merge_teacher_geo_data_from_forms
 
 # excluding forms: AffiliateWorkshopSignup
 
@@ -322,6 +340,8 @@ def main
   merge_geo_data_from_forms('PdWorkshopSurvey')
   merge_geo_data_from_forms('ProfessionalDevelopmentWorkshop')
   merge_geo_data_from_forms('ProfessionalDevelopmentWorkshopSignup')
+
+  update_facilitator_types
 #=end
 
   puts "Done"
