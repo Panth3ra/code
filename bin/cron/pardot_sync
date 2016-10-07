@@ -43,22 +43,54 @@ def append_plp_to_role_list
     WHERE LENGTH(users.email) > 0 AND contacts_rollup.id > 0"
 end
 
-def update_facilitator_types
-  # List of valid courses. If more courses get added, need to update this list and also schema in Pardot. We
-  # need to filter here to known courses in the Pardot schema - we can't blindly pass values through
-  course_list = "'CS Fundamentals','CS in Algebra','CS in Science','CS Principles','Exploring Computer Science'"
+# List of valid PD courses. If more courses get added, need to update this list and also schema in Pardot. We
+# need to filter here to known courses in the Pardot schema - we can't blindly pass values through
 
+COURSE_LIST = "'CS Fundamentals','CS in Algebra','CS in Science','CS Principles','Exploring Computer Science'"
+
+def update_facilitator_types
   PEGASUS_DB.run "SET SQL_SAFE_UPDATES = 0"
   PEGASUS_DB.run "UPDATE contacts_rollup,
-      (SELECT facilitator_id, group_concat(course) AS courses FROM (
-          SELECT DISTINCT facilitator_id,course FROM #{DASHBOARD_DB_NAME}.pd_course_facilitators
-	        WHERE COURSE IN (#{course_list})
-	        ORDER by 1,2
-      ) q
-      GROUP BY facilitator_id
-    ) src
-	SET contacts_rollup.facilitator_type = src.courses
-  WHERE contacts_rollup.dashboard_user_id = src.facilitator_id"
+      (SELECT facilitator_id, group_concat(course) AS courses FROM
+          (SELECT DISTINCT facilitator_id,course FROM #{DASHBOARD_DB_NAME}.pd_course_facilitators
+	            WHERE COURSE IN (#{COURSE_LIST})
+	            ORDER by 1,2
+          ) q
+          GROUP BY facilitator_id
+      ) src
+	    SET contacts_rollup.facilitator_type = src.courses
+      WHERE contacts_rollup.dashboard_user_id = src.facilitator_id"
+end
+
+def update_professional_learning_enrollment
+  PEGASUS_DB.run "SET SQL_SAFE_UPDATES = 0"
+  PEGASUS_DB.run "UPDATE contacts_rollup,
+      (SELECT user_id, group_concat(course) AS courses FROM
+          (SELECT DISTINCT pd_enrollments.user_id, pd_workshops.course FROM #{DASHBOARD_DB_NAME}.pd_enrollments AS pd_enrollments
+	            INNER JOIN #{DASHBOARD_DB_NAME}.pd_workshops AS pd_workshops ON pd_workshops.id = pd_enrollments.pd_workshop_id
+              WHERE COURSE IN (#{COURSE_LIST})
+              ORDER BY 1,2
+          ) q
+          GROUP by user_id
+      ) src
+	    SET contacts_rollup.professional_learning_enrolled = src.courses
+      WHERE contacts_rollup.dashboard_user_id = src.user_id"
+end
+
+def update_professional_learning_attendance
+  PEGASUS_DB.run "SET SQL_SAFE_UPDATES = 0"
+  PEGASUS_DB.run "UPDATE contacts_rollup,
+      (SELECT teacher_id, group_concat(course) AS courses FROM
+          (SELECT DISTINCT pd_attendances.teacher_id, pd_workshops.course FROM #{DASHBOARD_DB_NAME}.pd_attendances AS pd_attendances
+	            INNER JOIN #{DASHBOARD_DB_NAME}.pd_sessions AS pd_sessions ON pd_sessions.id = pd_attendances.pd_session_id
+	            INNER JOIN #{DASHBOARD_DB_NAME}.pd_workshops AS pd_workshops ON pd_workshops.id = pd_sessions.pd_workshop_id
+              WHERE COURSE IN (#{COURSE_LIST})
+              ORDER BY 1,2
+          ) q
+          GROUP by teacher_id
+      ) src
+	    SET contacts_rollup.professional_learning_attended = src.courses
+      WHERE contacts_rollup.dashboard_user_id = src.teacher_id"
 end
 
 def mysql_multi_connection
@@ -342,8 +374,10 @@ def main
   merge_geo_data_from_forms('ProfessionalDevelopmentWorkshopSignup')
 
   update_facilitator_types
-#=end
+  update_professional_learning_enrollment
+  update_professional_learning_attendance
 
+#=end
   puts "Done"
 end
 
