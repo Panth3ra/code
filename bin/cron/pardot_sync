@@ -68,7 +68,7 @@ def update_professional_learning_enrollment
       (SELECT user_id, group_concat(course) AS courses FROM
           (SELECT DISTINCT pd_enrollments.user_id, pd_workshops.course FROM #{DASHBOARD_DB_NAME}.pd_enrollments AS pd_enrollments
 	            INNER JOIN #{DASHBOARD_DB_NAME}.pd_workshops AS pd_workshops ON pd_workshops.id = pd_enrollments.pd_workshop_id
-              WHERE COURSE IN (#{COURSE_LIST})
+              WHERE course IN (#{COURSE_LIST})
               ORDER BY 1,2
           ) q
           GROUP by user_id
@@ -80,14 +80,29 @@ end
 def update_professional_learning_attendance
   PEGASUS_DB.run "SET SQL_SAFE_UPDATES = 0"
   PEGASUS_DB.run "UPDATE contacts_rollup,
-      (SELECT teacher_id, group_concat(course) AS courses FROM
-          (SELECT DISTINCT pd_attendances.teacher_id, pd_workshops.course FROM #{DASHBOARD_DB_NAME}.pd_attendances AS pd_attendances
-	            INNER JOIN #{DASHBOARD_DB_NAME}.pd_sessions AS pd_sessions ON pd_sessions.id = pd_attendances.pd_session_id
-	            INNER JOIN #{DASHBOARD_DB_NAME}.pd_workshops AS pd_workshops ON pd_workshops.id = pd_sessions.pd_workshop_id
-              WHERE COURSE IN (#{COURSE_LIST})
-              ORDER BY 1,2
-          ) q
-          GROUP by teacher_id
+      (SELECT teacher_id, group_concat(course) as courses FROM
+          (SELECT DISTINCT teacher_id,course FROM
+              (SELECT pd_attendances.teacher_id, pd_workshops.course
+                  FROM #{DASHBOARD_DB_NAME}.pd_attendances AS pd_attendances
+	                INNER JOIN #{DASHBOARD_DB_NAME}.pd_sessions AS pd_sessions ON pd_sessions.id = pd_attendances.pd_session_id
+	                INNER JOIN #{DASHBOARD_DB_NAME}.pd_workshops AS pd_workshops ON pd_workshops.id = pd_sessions.pd_workshop_id
+                  WHERE course IN (#{COURSE_LIST})
+              UNION
+              SELECT teacher_id,
+                  CASE program_type
+	                    WHEN 1 THEN 'CS in Science'
+                      WHEN 2 THEN 'CS in Algebra'
+                      WHEN 3 THEN 'Exploring Computer Science'
+                      WHEN 4 THEN 'CS Principles'
+                      WHEN 5 THEN 'CS Fundamentals'
+                  END AS course
+                  FROM #{DASHBOARD_DB_NAME}.workshop_attendance AS workshop_attendance
+	              INNER JOIN #{DASHBOARD_DB_NAME}.segments AS segments ON segments.id = workshop_attendance.segment_id
+	              INNER JOIN #{DASHBOARD_DB_NAME}.workshops AS workshops ON workshops.id = segments.workshop_id
+              ) q1
+          ORDER BY 1,2
+          ) q2
+          GROUP BY teacher_id
       ) src
 	    SET contacts_rollup.professional_learning_attended = src.courses
       WHERE contacts_rollup.dashboard_user_id = src.teacher_id"
