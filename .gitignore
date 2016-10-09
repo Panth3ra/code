@@ -50,3 +50,5 @@ crowdin.yaml
 /rebuild-shared
 /rebuild-code-studio
 /shared/js/node_modules/
+
+dashboard/config/database.yml
